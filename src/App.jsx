@@ -24,8 +24,13 @@ function App() {
     const [captureWeekView, setCaptureWeekView] = useState(false);
     const [editReservationId, setEditReservationId] = useState(null);
     const [selectedReservations, setSelectedReservations] = useState([]);
-    const [loading, setLoading] = useState(true); // Add loading state
-    const [error, setError] = useState(null); // Add error state
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [showPasswordModal, setShowPasswordModal] = useState(true);
+    const [password, setPassword] = useState('');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    const CORRECT_PASSWORD = "admin123"; // Define your password here
 
     useEffect(() => {
         const fetchData = async () => {
@@ -74,8 +79,8 @@ function App() {
     }, [captureWeekView, displayMode, selectedDateRange]);
 
     useEffect(() => {
-        if (showDashboardModal) fetchReservations();
-    }, [showDashboardModal]);
+        if (showDashboardModal && isAuthenticated) fetchReservations();
+    }, [showDashboardModal, isAuthenticated]);
 
     const fetchReservations = async () => {
         try {
@@ -86,7 +91,7 @@ function App() {
         } catch (error) {
             console.error('Error fetching reservations:', error);
             setReservations([]);
-            throw error; // Re-throw to catch in useEffect
+            throw error;
         }
     };
 
@@ -101,6 +106,20 @@ function App() {
         } catch (error) {
             console.error('Error saving reservations:', error);
         }
+    };
+
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        if (password === CORRECT_PASSWORD) {
+            setIsAuthenticated(true);
+        }
+        setShowPasswordModal(false);
+        setPassword('');
+    };
+
+    const handleContinueWithoutPassword = () => {
+        setIsAuthenticated(false);
+        setShowPasswordModal(false);
     };
 
     const handleDateChange = (newDate) => {
@@ -150,14 +169,22 @@ function App() {
         }
     };
 
-    const toggleCalendar = () => setShowCalendar(!showCalendar);
+    const toggleCalendar = () => setShowCalendar(!showCalendar); // Removed isAuthenticated check
+
     const handleModalToggle = () => {
+        if (!isAuthenticated) {
+            alert('Please enter the password to add or edit reservations.');
+            return;
+        }
+        if (showModal) {
+            setReservationDetails({ clientName: '', date: '', startTime: '', endTime: '', platform: '', status: 'pending', price: '' });
+            setEditReservationId(null);
+        }
         setShowModal(!showModal);
-        if (!showModal) setEditReservationId(null);
     };
 
-    const toggleDashboardModal = () => setShowDashboardModal(true);
-    const toggleDashboardCalendar = () => setShowDashboardCalendar(!showDashboardCalendar);
+    const toggleDashboardModal = () => isAuthenticated && setShowDashboardModal(true);
+    const toggleDashboardCalendar = () => isAuthenticated && setShowDashboardCalendar(!showDashboardCalendar);
     const handleDashboardMonthChange = (newDate) => {
         setSelectedDashboardMonth(newDate);
         setShowDashboardCalendar(false);
@@ -170,6 +197,10 @@ function App() {
 
     const handleFormSubmit = async (e) => {
         e.preventDefault();
+        if (!isAuthenticated) {
+            alert('Please enter the password to submit reservations.');
+            return;
+        }
         if (reservationDetails.endTime <= reservationDetails.startTime) {
             alert('End time must be after start time!');
             return;
@@ -183,38 +214,56 @@ function App() {
             alert('Time overlaps with an existing reservation!');
             return;
         }
+
         let updatedReservations;
         if (editReservationId) {
-            updatedReservations = reservations.map((res) => (res.id === editReservationId ? { ...reservationDetails, id: editReservationId } : res));
+            updatedReservations = reservations.map((res) =>
+                res.id === editReservationId ? { ...reservationDetails, id: editReservationId } : res
+            );
         } else {
             updatedReservations = [...reservations, { ...reservationDetails, id: Date.now() }];
         }
+
         setReservations(updatedReservations);
         await saveReservations(updatedReservations);
         setReservationDetails({ clientName: '', date: '', startTime: '', endTime: '', platform: '', status: 'pending', price: '' });
         setEditReservationId(null);
-        handleModalToggle();
+        setShowModal(false);
     };
 
     const handleEditReservation = (reservation) => {
-        setReservationDetails(reservation);
+        if (!isAuthenticated) {
+            alert('Please enter the password to edit reservations.');
+            return;
+        }
+        setReservationDetails({ ...reservation });
         setEditReservationId(reservation.id);
-        handleModalToggle();
+        setShowModal(true);
     };
 
     const deleteReservation = async (id) => {
+        if (!isAuthenticated) {
+            alert('Please enter the password to delete reservations.');
+            return;
+        }
         const updatedReservations = reservations.filter((res) => res.id !== id);
         setReservations(updatedReservations);
         await saveReservations(updatedReservations);
     };
 
     const bulkDelete = async () => {
+        if (!isAuthenticated) {
+            alert('Please enter the password to delete reservations.');
+            return;
+        }
         if (selectedReservations.length === 0) return;
         const updatedReservations = reservations.filter((res) => !selectedReservations.includes(res.id));
         setReservations(updatedReservations);
         await saveReservations(updatedReservations);
         setSelectedReservations([]);
     };
+
+    const toggleListModal = () => isAuthenticated && setShowListModal(!showListModal);
 
     const getDashboardStats = () => {
         const monthStart = new Date(selectedDashboardMonth.getFullYear(), selectedDashboardMonth.getMonth(), 1);
@@ -304,6 +353,10 @@ function App() {
     };
 
     const generateReport = () => {
+        if (!isAuthenticated) {
+            alert('Please enter the password to generate a report.');
+            return;
+        }
         const stats = getDashboardStats();
         const report = `
             Reservation Report (${selectedDashboardMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}):
@@ -357,8 +410,6 @@ function App() {
     };
 
     const [showListModal, setShowListModal] = useState(false);
-    const toggleListModal = () => setShowListModal(!showListModal);
-
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const toggleMobileMenu = () => setShowMobileMenu(!showMobileMenu);
 
@@ -383,9 +434,13 @@ function App() {
                                     <div className="text-sm">{reservation.startTime} - {reservation.endTime}</div>
                                     <div className="text-sm">Platform: {reservation.platform}</div>
                                     <div className="text-sm">Status: {reservation.status}</div>
-                                    <div className="text-sm">Price: ${reservation.price || 'N/A'}</div>
-                                    <button onClick={() => deleteReservation(reservation.id)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center">×</button>
-                                    <button onClick={() => handleEditReservation(reservation)} className="absolute top-2 right-10 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center">✎</button>
+                                    {isAuthenticated && <div className="text-sm">Price: ${reservation.price || 'N/A'}</div>}
+                                    {isAuthenticated && (
+                                        <>
+                                            <button onClick={() => deleteReservation(reservation.id)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center">×</button>
+                                            <button onClick={() => handleEditReservation(reservation)} className="absolute top-2 right-10 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center">✎</button>
+                                        </>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -430,7 +485,7 @@ function App() {
                                                         <div className="text-black text-xs truncate w-full text-center">{reservation.startTime} - {reservation.endTime}</div>
                                                         <div className="text-black text-xs px-1 rounded-sm truncate w-full text-center">{reservation.platform}</div>
                                                         <div className="text-black text-xs truncate w-full text-center">{reservation.status}</div>
-                                                        <div className="text-black text-xs truncate w-full text-center">${reservation.price || 'N/A'}</div>
+                                                        {isAuthenticated && <div className="text-black text-xs truncate w-full text-center">${reservation.price || 'N/A'}</div>}
                                                     </>
                                                 )}
                                             </div>
@@ -454,6 +509,32 @@ function App() {
         { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500' },
         { label: 'Dashboard', action: toggleDashboardModal, color: 'bg-indigo-500' },
     ];
+
+    if (showPasswordModal) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 animate-fade-in">
+                <div className="w-full max-w-md bg-white p-6 rounded shadow-lg">
+                    <h2 className="text-xl mb-4">Enter Password</h2>
+                    <form onSubmit={handlePasswordSubmit}>
+                        <div className="mb-4">
+                            <label className="block">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-2 border rounded"
+                                required
+                            />
+                        </div>
+                        <div className="flex justify-between">
+                            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Submit</button>
+                            <button type="button" onClick={handleContinueWithoutPassword} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Continue Without Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return <div className="h-screen w-full flex items-center justify-center text-gray-500">Loading...</div>;
@@ -506,7 +587,7 @@ function App() {
                 <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-xl shadow-lg z-40 p-4 border-t border-gray-200 animate-fade-in">
                     <div className="grid grid-cols-2 gap-3">
                         {mobileMenuOptions.map((option, index) => (
-                            <button key={index} onClick={option.action} className={`${option.color} text-white py-3 px-4 rounded-lg text-sm font-medium`}>
+                            <button key={index} onClick={option.action} className={`${option.color} text-white py-3 px-4 rounded-lg text-sm font-medium ${!isAuthenticated && option.label !== 'Select Date' ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 {option.label}
                             </button>
                         ))}
@@ -559,10 +640,12 @@ function App() {
                                     <option value="canceled">Canceled</option>
                                 </select>
                             </div>
-                            <div className="mb-4">
-                                <label className="block">Price ($)</label>
-                                <input type="number" name="price" value={reservationDetails.price} onChange={handleInputChange} className="w-full p-2 border rounded" step="0.01" min="0" />
-                            </div>
+                            {isAuthenticated && (
+                                <div className="mb-4">
+                                    <label className="block">Price ($)</label>
+                                    <input type="number" name="price" value={reservationDetails.price} onChange={handleInputChange} className="w-full p-2 border rounded" step="0.01" min="0" />
+                                </div>
+                            )}
                             <div className="flex justify-between">
                                 <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">{editReservationId ? 'Update' : 'Add'}</button>
                                 <button type="button" onClick={handleModalToggle} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Close</button>
@@ -573,8 +656,8 @@ function App() {
             )}
 
             {showListModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 animate-fade-in">
-                    <div className="w-full max-w-4xl bg-white p-6 rounded shadow-lg max-h-screen overflow-auto">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex justify-center items-center p-4 animate-fade-in">
+                    <div className="w-full max-w-4xl bg-white p-6 rounded shadow-lg max-h-screen overflow-auto relative z-70">
                         <h2 className="text-xl mb-4">All Reservations</h2>
                         {reservations.length > 0 ? (
                             <div className="overflow-x-auto">
@@ -587,8 +670,8 @@ function App() {
                                         <th className="p-2 border text-left">Time</th>
                                         <th className="p-2 border text-left">Platform</th>
                                         <th className="p-2 border text-left">Status</th>
-                                        <th className="p-2 border text-left">Price</th>
-                                        <th className="p-2 border text-left">Actions</th>
+                                        {isAuthenticated && <th className="p-2 border text-left">Price</th>}
+                                        {isAuthenticated && <th className="p-2 border text-left">Actions</th>}
                                     </tr>
                                     </thead>
                                     <tbody>
@@ -600,11 +683,13 @@ function App() {
                                             <td className="p-2 border">{reservation.startTime} - {reservation.endTime}</td>
                                             <td className="p-2 border">{reservation.platform}</td>
                                             <td className="p-2 border">{reservation.status}</td>
-                                            <td className="p-2 border">${reservation.price || 'N/A'}</td>
-                                            <td className="p-2 border">
-                                                <button onClick={() => deleteReservation(reservation.id)} className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 transition">Delete</button>
-                                                <button onClick={() => handleEditReservation(reservation)} className="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-2 hover:bg-blue-600 transition">Edit</button>
-                                            </td>
+                                            {isAuthenticated && <td className="p-2 border">${reservation.price || 'N/A'}</td>}
+                                            {isAuthenticated && (
+                                                <td className="p-2 border">
+                                                    <button onClick={() => deleteReservation(reservation.id)} className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 transition z-80">Delete</button>
+                                                    <button onClick={() => handleEditReservation(reservation)} className="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-2 hover:bg-blue-600 transition z-80">Edit</button>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                     </tbody>
@@ -614,10 +699,10 @@ function App() {
                             <p>No reservations found.</p>
                         )}
                         <div className="mt-4 flex justify-between">
-                            {reservations.length > 0 && (
-                                <button onClick={bulkDelete} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Delete Selected</button>
+                            {isAuthenticated && reservations.length > 0 && (
+                                <button onClick={bulkDelete} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition z-80">Delete Selected</button>
                             )}
-                            <button onClick={toggleListModal} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition ml-auto">Close</button>
+                            <button onClick={toggleListModal} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition ml-auto z-80">Close</button>
                         </div>
                     </div>
                 </div>
@@ -650,43 +735,53 @@ function App() {
                                             <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Customers</h3>
                                             <p className="text-2xl font-bold text-blue-600">{getDashboardStats().totalCustomers}</p>
                                         </div>
-                                        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Revenue</h3>
-                                            <p className="text-2xl font-bold text-green-600">${getDashboardStats().totalRevenue}</p>
-                                        </div>
-                                        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Revenue This Month</h3>
-                                            <p className="text-2xl font-bold text-green-600">${getDashboardStats().revenueThisMonth}</p>
-                                        </div>
+                                        {isAuthenticated && (
+                                            <>
+                                                <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Revenue</h3>
+                                                    <p className="text-2xl font-bold text-green-600">${getDashboardStats().totalRevenue}</p>
+                                                </div>
+                                                <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Revenue This Month</h3>
+                                                    <p className="text-2xl font-bold text-green-600">${getDashboardStats().revenueThisMonth}</p>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Today's Customers</h3>
-                                            <p className="text-2xl font-bold text-blue-600">{getDashboardStats().todayCustomers}</p>
+                                    {isAuthenticated && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Today's Customers</h3>
+                                                <p className="text-2xl font-bold text-blue-600">{getDashboardStats().todayCustomers}</p>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Today's Revenue</h3>
+                                                <p className="text-2xl font-bold text-green-600">${getDashboardStats().todayRevenue}</p>
+                                            </div>
                                         </div>
-                                        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Today's Revenue</h3>
-                                            <p className="text-2xl font-bold text-green-600">${getDashboardStats().todayRevenue}</p>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Revenue by Platform</h3>
-                                        <Pie data={getDashboardStats().platformChartData} options={{ responsive: true, plugins: { legend: { position: 'bottom' } }, animation: { duration: 1000 } }} height={200} />
-                                    </div>
-                                    <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly Trends</h3>
-                                        <Line data={getDashboardStats().trendsChartData} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Customers & Revenue Trends', font: { size: 16 } } }, scales: { y: { beginAtZero: true } }, animation: { duration: 1000 } }} height={200} />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Predicted Customers</h3>
-                                            <p className="text-2xl font-bold text-purple-600">{getDashboardStats().predictedCustomers}</p>
-                                        </div>
-                                        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Predicted Revenue</h3>
-                                            <p className="text-2xl font-bold text-purple-600">${getDashboardStats().predictedRevenue}</p>
-                                        </div>
-                                    </div>
+                                    )}
+                                    {isAuthenticated && (
+                                        <>
+                                            <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Revenue by Platform</h3>
+                                                <Pie data={getDashboardStats().platformChartData} options={{ responsive: true, plugins: { legend: { position: 'bottom' } }, animation: { duration: 1000 } }} height={200} />
+                                            </div>
+                                            <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly Trends</h3>
+                                                <Line data={getDashboardStats().trendsChartData} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Customers & Revenue Trends', font: { size: 16 } } }, scales: { y: { beginAtZero: true } }, animation: { duration: 1000 } }} height={200} />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Predicted Customers</h3>
+                                                    <p className="text-2xl font-bold text-purple-600">{getDashboardStats().predictedCustomers}</p>
+                                                </div>
+                                                <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
+                                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Predicted Revenue</h3>
+                                                    <p className="text-2xl font-bold text-purple-600">${getDashboardStats().predictedRevenue}</p>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             ) : (
                                 <p className="text-center text-gray-500">No data available.</p>
@@ -694,7 +789,7 @@ function App() {
                         </div>
                         <div className="p-6 flex justify-between items-center bg-gray-50 rounded-b-xl">
                             <button onClick={toggleDashboardCalendar} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Select Month</button>
-                            <button onClick={generateReport} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">Generate Report</button>
+                            {isAuthenticated && <button onClick={generateReport} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">Generate Report</button>}
                             <button onClick={() => setShowDashboardModal(false)} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Close</button>
                         </div>
                         {showDashboardCalendar && (
