@@ -24,19 +24,32 @@ function App() {
     const [captureWeekView, setCaptureWeekView] = useState(false);
     const [editReservationId, setEditReservationId] = useState(null);
     const [selectedReservations, setSelectedReservations] = useState([]);
+    const [loading, setLoading] = useState(true); // Add loading state
+    const [error, setError] = useState(null); // Add error state
 
     useEffect(() => {
-        fetchReservations();
-        if (!selectedDateRange) {
-            const startOfWeek = getStartOfWeek(date);
-            const endOfWeek = getEndOfWeek(date);
-            setSelectedDateRange([startOfWeek, endOfWeek]);
-        }
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                await fetchReservations();
+                if (!selectedDateRange) {
+                    const startOfWeek = getStartOfWeek(date);
+                    const endOfWeek = getEndOfWeek(date);
+                    setSelectedDateRange([startOfWeek, endOfWeek]);
+                }
+            } catch (err) {
+                setError('Failed to load reservations. Please try again.');
+                console.error('Initial load error:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
         setDisplayMode(window.innerWidth < 768 ? 'day' : 'week');
         const handleResize = () => setDisplayMode(window.innerWidth < 768 ? 'day' : 'week');
         window.addEventListener('resize', handleResize);
-        requestNotificationPermission();
-        scheduleNotifications();
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
@@ -61,18 +74,19 @@ function App() {
     }, [captureWeekView, displayMode, selectedDateRange]);
 
     useEffect(() => {
-        scheduleNotifications();
         if (showDashboardModal) fetchReservations();
-    }, [reservations, showDashboardModal]);
+    }, [showDashboardModal]);
 
     const fetchReservations = async () => {
         try {
             const response = await fetch('http://40.81.22.116:3000/reservations');
+            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             setReservations(data);
         } catch (error) {
             console.error('Error fetching reservations:', error);
             setReservations([]);
+            throw error; // Re-throw to catch in useEffect
         }
     };
 
@@ -87,27 +101,6 @@ function App() {
         } catch (error) {
             console.error('Error saving reservations:', error);
         }
-    };
-
-    const requestNotificationPermission = () => {
-        if (Notification.permission !== 'granted') Notification.requestPermission();
-    };
-
-    const scheduleNotifications = () => {
-        reservations.forEach((res) => {
-            const resDateTime = new Date(`${res.date}T${res.startTime}:00`);
-            const now = new Date();
-            const timeDiff = resDateTime - now;
-            if (timeDiff > 0 && timeDiff <= 24 * 60 * 60 * 1000 && res.status === 'confirmed') {
-                setTimeout(() => {
-                    if (Notification.permission === 'granted') {
-                        new Notification(`Upcoming Reservation: ${res.clientName}`, {
-                            body: `${res.startTime} - ${res.endTime} on ${res.platform}`,
-                        });
-                    }
-                }, timeDiff - 15 * 60 * 1000);
-            }
-        });
     };
 
     const handleDateChange = (newDate) => {
@@ -461,6 +454,19 @@ function App() {
         { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500' },
         { label: 'Dashboard', action: toggleDashboardModal, color: 'bg-indigo-500' },
     ];
+
+    if (loading) {
+        return <div className="h-screen w-full flex items-center justify-center text-gray-500">Loading...</div>;
+    }
+
+    if (error) {
+        return (
+            <div className="h-screen w-full flex flex-col items-center justify-center text-red-500">
+                <p>{error}</p>
+                <button onClick={() => window.location.reload()} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded">Retry</button>
+            </div>
+        );
+    }
 
     return (
         <div className="h-screen w-full flex flex-col">
