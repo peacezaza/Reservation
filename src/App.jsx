@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import domtoimage from 'dom-to-image';
@@ -19,6 +19,8 @@ function App() {
     const [reservations, setReservations] = useState([]);
     const [displayMode, setDisplayMode] = useState('day');
     const [mobileDay, setMobileDay] = useState(new Date());
+    const [captureWeekView, setCaptureWeekView] = useState(false); // New state for capturing week view
+    const originalDisplayModeRef = useRef(displayMode); // Ref to store original display mode
 
     // Fetch reservations from backend on mount
     useEffect(() => {
@@ -39,6 +41,45 @@ function App() {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Effect to handle capturing the week view table
+    useEffect(() => {
+        if (captureWeekView) {
+            const elementToCapture = document.getElementById("reservationTable");
+            if (elementToCapture) {
+                elementToCapture.scrollIntoView({ behavior: "smooth" });
+
+                domtoimage.toPng(elementToCapture, {
+                    quality: 0.95,
+                    bgcolor: '#ffffff',
+                })
+                    .then((dataUrl) => {
+                        const link = document.createElement("a");
+                        link.href = dataUrl;
+                        link.download = `schedule-week-${selectedDateRange ? selectedDateRange[0].toLocaleDateString().replace(/\//g, '-') : 'current'}.png`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    })
+                    .catch((error) => {
+                        console.error("Error generating PNG:", error);
+                        alert("Failed to save the week view as PNG. Check the console for details.");
+                    })
+                    .finally(() => {
+                        setCaptureWeekView(false);
+                        if (displayMode !== originalDisplayModeRef.current) {
+                            setDisplayMode(originalDisplayModeRef.current);
+                        }
+                    });
+            } else {
+                alert("Week view table not found. Please try again.");
+                setCaptureWeekView(false);
+                if (displayMode !== originalDisplayModeRef.current) {
+                    setDisplayMode(originalDisplayModeRef.current);
+                }
+            }
+        }
+    }, [captureWeekView, displayMode, selectedDateRange]);
 
     // Function to fetch reservations from backend
     const fetchReservations = async () => {
@@ -198,30 +239,35 @@ function App() {
     };
 
     const saveTableAsPNG = () => {
-        const tableElement = document.getElementById("reservationTable");
-        if (!tableElement) {
-            alert("Table not found. Please ensure the week view is active and try again.");
-            return;
+        originalDisplayModeRef.current = displayMode; // Store the current mode
+        if (displayMode !== 'week') {
+            setDisplayMode('week'); // Switch to week view
+            setCaptureWeekView(true); // Trigger the capture in the effect
+        } else {
+            // If already in week view, capture immediately
+            const elementToCapture = document.getElementById("reservationTable");
+            if (elementToCapture) {
+                elementToCapture.scrollIntoView({ behavior: "smooth" });
+                domtoimage.toPng(elementToCapture, {
+                    quality: 0.95,
+                    bgcolor: '#ffffff',
+                })
+                    .then((dataUrl) => {
+                        const link = document.createElement("a");
+                        link.href = dataUrl;
+                        link.download = `schedule-week-${selectedDateRange ? selectedDateRange[0].toLocaleDateString().replace(/\//g, '-') : 'current'}.png`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    })
+                    .catch((error) => {
+                        console.error("Error generating PNG:", error);
+                        alert("Failed to save the week view as PNG. Check the console for details.");
+                    });
+            } else {
+                alert("Week view table not found. Please try again.");
+            }
         }
-
-        tableElement.scrollIntoView({ behavior: "smooth" });
-
-        domtoimage.toPng(tableElement, {
-            quality: 0.95, // Image quality (0-1)
-            bgcolor: '#ffffff', // Background color
-        })
-            .then((dataUrl) => {
-                const link = document.createElement("a");
-                link.href = dataUrl;
-                link.download = "schedule-table.png";
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            })
-            .catch((error) => {
-                console.error("Error generating PNG:", error);
-                alert("Failed to save the table as PNG. Check the console for details.");
-            });
     };
 
     const [showListModal, setShowListModal] = useState(false);
@@ -340,6 +386,7 @@ function App() {
         { label: 'Add Reservation', action: handleModalToggle, color: 'bg-yellow-500' },
         { label: 'View All', action: toggleListModal, color: 'bg-purple-500' },
         { label: 'Select Date', action: toggleCalendar, color: 'bg-blue-500' },
+        { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500' },
     ];
 
     return (
