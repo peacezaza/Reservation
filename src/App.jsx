@@ -7,51 +7,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
-const CORRECT_PASSWORD = "admin123";
-
-function Login({ onLogin }) {
-    const [password, setPassword] = useState('');
-
-    const handleLogin = (e) => {
-        e.preventDefault();
-        if (password === CORRECT_PASSWORD) {
-            localStorage.setItem('isAuthenticated', 'true');
-            onLogin(true);
-        } else {
-            alert('Incorrect password!');
-            setPassword('');
-        }
-    };
-
-    return (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-100 overflow-auto">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md sm:p-8 animate-fade-in">
-                <h2 className="text-2xl font-bold mb-6 text-center">Admin Login</h2>
-                <form onSubmit={handleLogin}>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        Login
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-}
-
 function App() {
-    const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('isAuthenticated') === 'true');
     const [date, setDate] = useState(new Date());
     const [selectedDateRange, setSelectedDateRange] = useState(null);
     const [showCalendar, setShowCalendar] = useState(false);
@@ -505,10 +461,6 @@ function App() {
         { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500' },
         { label: 'Dashboard', action: toggleDashboardModal, color: 'bg-indigo-500' },
     ];
-
-    if (!isAuthenticated) {
-        return <Login onLogin={setIsAuthenticated} />;
-    }
 
     return (
         <div className="h-screen w-full flex flex-col">
