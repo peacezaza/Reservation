@@ -43,7 +43,7 @@ function App() {
     // Function to fetch reservations from backend
     const fetchReservations = async () => {
         try {
-            const response = await fetch('http://localhost:3000/reservations');
+            const response = await fetch('hhttp://40.81.22.116:3000/reservations');
             const data = await response.json();
             setReservations(data);
         } catch (error) {
@@ -55,7 +55,7 @@ function App() {
     // Function to save reservations to backend
     const saveReservations = async (updatedReservations) => {
         try {
-            const response = await fetch('http://localhost:3000/reservations', {
+            const response = await fetch('http://40.81.22.116:3000/reservations', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
