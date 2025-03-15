@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import html2canvas from "html2canvas";
+import domtoimage from 'dom-to-image';
 import Color from "color";
 
 function App() {
@@ -43,7 +43,7 @@ function App() {
     // Function to fetch reservations from backend
     const fetchReservations = async () => {
         try {
-            const response = await fetch('http://40.81.22.116:3000/reservations');
+            const response = await fetch('http://localhost:3000/reservations');
             const data = await response.json();
             setReservations(data);
         } catch (error) {
@@ -55,7 +55,7 @@ function App() {
     // Function to save reservations to backend
     const saveReservations = async (updatedReservations) => {
         try {
-            const response = await fetch('http://40.81.22.116:3000/reservations', {
+            const response = await fetch('http://localhost:3000/reservations', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -206,34 +206,11 @@ function App() {
 
         tableElement.scrollIntoView({ behavior: "smooth" });
 
-        html2canvas(tableElement, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            logging: true,
-            onclone: (clonedDoc) => {
-                const clonedTable = clonedDoc.getElementById("reservationTable");
-                clonedTable.style.width = "auto";
-                clonedTable.style.maxWidth = "none";
-                clonedTable.style.overflow = "visible";
-                const elements = clonedTable.getElementsByTagName("*");
-                for (let element of elements) {
-                    const style = clonedDoc.defaultView.getComputedStyle(element);
-                    const bgColor = style.backgroundColor;
-                    if (bgColor && bgColor.includes("oklch")) {
-                        try {
-                            const rgbColor = Color(bgColor).rgb().string();
-                            element.style.backgroundColor = rgbColor;
-                        } catch (e) {
-                            console.warn("Failed to convert color:", bgColor, e);
-                            element.style.backgroundColor = "#ffffff";
-                        }
-                    }
-                }
-            }
+        domtoimage.toPng(tableElement, {
+            quality: 0.95, // Image quality (0-1)
+            bgcolor: '#ffffff', // Background color
         })
-            .then((canvas) => {
-                const dataUrl = canvas.toDataURL("image/png");
+            .then((dataUrl) => {
                 const link = document.createElement("a");
                 link.href = dataUrl;
                 link.download = "schedule-table.png";
