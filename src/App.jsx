@@ -29,8 +29,13 @@ function App() {
     const [showPasswordModal, setShowPasswordModal] = useState(true);
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [showMobileMenu, setShowMobileMenu] = useState(false); // Added back
+    const [showListModal, setShowListModal] = useState(false); // Added back
 
-    const CORRECT_PASSWORD = "admin123"; // Define your password here
+    const CORRECT_PASSWORD = "admin123";
+
+    // Define toggleMobileMenu
+    const toggleMobileMenu = () => setShowMobileMenu(!showMobileMenu);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -169,7 +174,7 @@ function App() {
         }
     };
 
-    const toggleCalendar = () => setShowCalendar(!showCalendar); // Removed isAuthenticated check
+    const toggleCalendar = () => setShowCalendar(!showCalendar);
 
     const handleModalToggle = () => {
         if (!isAuthenticated) {
@@ -392,11 +397,86 @@ function App() {
 
     const getDayName = (date) => date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 
-    const saveTableAsPNG = () => {
-        const elementToCapture = document.getElementById("reservationTable");
+    const saveTableAsPNG = async () => {
+        let originalDisplayMode = displayMode;
+        let elementToCapture = document.getElementById("reservationTable");
+
+        // Store original styles to restore later
+        const originalStyles = {
+            width: elementToCapture ? elementToCapture.style.width : null,
+            fontSize: elementToCapture ? elementToCapture.style.fontSize : null,
+            bodyOverflow: document.body.style.overflow,
+            tds: [],
+            ths: [],
+            divs: []
+        };
+
+        if (displayMode === 'day') {
+            setDisplayMode('week');
+            await new Promise(resolve => setTimeout(resolve, 200)); // Wait for render
+            elementToCapture = document.getElementById("reservationTable");
+        }
+
         if (elementToCapture) {
+            // Temporarily adjust table styles for readability
+            elementToCapture.style.width = '2000px'; // Even larger width for more space
+            elementToCapture.style.fontSize = '20px'; // Larger base font size
+            document.body.style.overflow = 'hidden'; // Prevent scrollbars
+
+            // Adjust table cells (td, th) and nested divs
+            const tds = elementToCapture.querySelectorAll('td');
+            const ths = elementToCapture.querySelectorAll('th');
+            const divs = elementToCapture.querySelectorAll('td div');
+
+            // Save and update td styles
+            tds.forEach(td => {
+                originalStyles.tds.push({
+                    padding: td.style.padding,
+                    height: td.style.height
+                });
+                td.style.padding = '12px'; // More padding
+                td.style.height = '120px'; // Double the height for more vertical space
+            });
+
+            // Save and update th styles
+            ths.forEach(th => {
+                originalStyles.ths.push({
+                    padding: th.style.padding,
+                    fontSize: th.style.fontSize
+                });
+                th.style.padding = '12px';
+                th.style.fontSize = '24px'; // Larger header font
+            });
+
+            // Save and update nested div styles (reservation details)
+            divs.forEach(div => {
+                originalStyles.divs.push({
+                    fontSize: div.style.fontSize,
+                    classes: div.className
+                });
+                // Remove truncate and set larger font sizes
+                div.className = div.className.replace(/truncate/g, '');
+                div.style.fontSize = '15px'; // Larger font for reservation details
+            });
+
+            // Calculate scaled dimensions
+            const scaleFactor = 2; // Double the resolution
+            const width = elementToCapture.offsetWidth * scaleFactor;
+            const height = elementToCapture.offsetHeight * scaleFactor;
+
             elementToCapture.scrollIntoView({ behavior: "smooth" });
-            domtoimage.toPng(elementToCapture, { quality: 0.95, bgcolor: '#ffffff' })
+            domtoimage.toPng(elementToCapture, {
+                quality: 0.95,
+                bgcolor: '#ffffff',
+                width: width,
+                height: height,
+                style: {
+                    transform: `scale(${scaleFactor})`,
+                    transformOrigin: 'top left',
+                    width: `${elementToCapture.offsetWidth}px`,
+                    height: `${elementToCapture.offsetHeight}px`
+                }
+            })
                 .then((dataUrl) => {
                     const link = document.createElement("a");
                     link.href = dataUrl;
@@ -405,13 +485,37 @@ function App() {
                     link.click();
                     document.body.removeChild(link);
                 })
-                .catch((error) => console.error("Error generating PNG:", error));
+                .catch((error) => {
+                    console.error("Error generating PNG:", error);
+                    alert("Failed to save week view as PNG. Please try again.");
+                })
+                .finally(() => {
+                    // Restore original styles
+                    if (elementToCapture) {
+                        elementToCapture.style.width = originalStyles.width || '';
+                        elementToCapture.style.fontSize = originalStyles.fontSize || '';
+                        tds.forEach((td, index) => {
+                            td.style.padding = originalStyles.tds[index]?.padding || '';
+                            td.style.height = originalStyles.tds[index]?.height || '';
+                        });
+                        ths.forEach((th, index) => {
+                            th.style.padding = originalStyles.ths[index]?.padding || '';
+                            th.style.fontSize = originalStyles.ths[index]?.fontSize || '';
+                        });
+                        divs.forEach((div, index) => {
+                            div.className = originalStyles.divs[index]?.classes || div.className;
+                            div.style.fontSize = originalStyles.divs[index]?.fontSize || '';
+                        });
+                    }
+                    document.body.style.overflow = originalStyles.bodyOverflow || '';
+                    if (originalDisplayMode === 'day') {
+                        setDisplayMode('day');
+                    }
+                });
+        } else {
+            alert("Week view table not found. Please ensure content is loaded.");
         }
     };
-
-    const [showListModal, setShowListModal] = useState(false);
-    const [showMobileMenu, setShowMobileMenu] = useState(false);
-    const toggleMobileMenu = () => setShowMobileMenu(!showMobileMenu);
 
     const renderMobileDayView = () => {
         const dayName = getDayName(mobileDay);
