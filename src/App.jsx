@@ -26,15 +26,14 @@ function App() {
     const [selectedReservations, setSelectedReservations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showPasswordModal, setShowPasswordModal] = useState(true);
-    const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [showMobileMenu, setShowMobileMenu] = useState(false); // Added back
-    const [showListModal, setShowListModal] = useState(false); // Added back
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const [showListModal, setShowListModal] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false); // Reintroduced
+    const [password, setPassword] = useState(''); // Reintroduced
 
     const CORRECT_PASSWORD = "admin123";
 
-    // Define toggleMobileMenu
     const toggleMobileMenu = () => setShowMobileMenu(!showMobileMenu);
 
     useEffect(() => {
@@ -117,14 +116,15 @@ function App() {
         e.preventDefault();
         if (password === CORRECT_PASSWORD) {
             setIsAuthenticated(true);
+        } else {
+            alert('Incorrect password. Please try again.');
         }
         setShowPasswordModal(false);
         setPassword('');
     };
 
-    const handleContinueWithoutPassword = () => {
-        setIsAuthenticated(false);
-        setShowPasswordModal(false);
+    const handleLogin = () => {
+        setShowPasswordModal(true); // Open password modal on login click
     };
 
     const handleDateChange = (newDate) => {
@@ -178,7 +178,7 @@ function App() {
 
     const handleModalToggle = () => {
         if (!isAuthenticated) {
-            alert('Please enter the password to add or edit reservations.');
+            alert('Please log in to add or edit reservations.');
             return;
         }
         if (showModal) {
@@ -188,8 +188,22 @@ function App() {
         setShowModal(!showModal);
     };
 
-    const toggleDashboardModal = () => isAuthenticated && setShowDashboardModal(true);
-    const toggleDashboardCalendar = () => isAuthenticated && setShowDashboardCalendar(!showDashboardCalendar);
+    const toggleDashboardModal = () => {
+        if (!isAuthenticated) {
+            alert('Please log in to access the dashboard.');
+            return;
+        }
+        setShowDashboardModal(true);
+    };
+
+    const toggleDashboardCalendar = () => {
+        if (!isAuthenticated) {
+            alert('Please log in to select a month.');
+            return;
+        }
+        setShowDashboardCalendar(!showDashboardCalendar);
+    };
+
     const handleDashboardMonthChange = (newDate) => {
         setSelectedDashboardMonth(newDate);
         setShowDashboardCalendar(false);
@@ -197,13 +211,13 @@ function App() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setReservationDetails((prev) => ({ ...prev, [name]: name === 'price' ? parseFloat(value) || '' : value }));
+        setReservationDetails((prev) => ({ ...prev, [name]: name === 'price' ? (isAuthenticated ? parseFloat(value) || '' : '') : value }));
     };
 
     const handleFormSubmit = async (e) => {
         e.preventDefault();
         if (!isAuthenticated) {
-            alert('Please enter the password to submit reservations.');
+            alert('Please log in to submit reservations.');
             return;
         }
         if (reservationDetails.endTime <= reservationDetails.startTime) {
@@ -238,7 +252,7 @@ function App() {
 
     const handleEditReservation = (reservation) => {
         if (!isAuthenticated) {
-            alert('Please enter the password to edit reservations.');
+            alert('Please log in to edit reservations.');
             return;
         }
         setReservationDetails({ ...reservation });
@@ -248,7 +262,7 @@ function App() {
 
     const deleteReservation = async (id) => {
         if (!isAuthenticated) {
-            alert('Please enter the password to delete reservations.');
+            alert('Please log in to delete reservations.');
             return;
         }
         const updatedReservations = reservations.filter((res) => res.id !== id);
@@ -258,7 +272,7 @@ function App() {
 
     const bulkDelete = async () => {
         if (!isAuthenticated) {
-            alert('Please enter the password to delete reservations.');
+            alert('Please log in to delete reservations.');
             return;
         }
         if (selectedReservations.length === 0) return;
@@ -268,7 +282,13 @@ function App() {
         setSelectedReservations([]);
     };
 
-    const toggleListModal = () => isAuthenticated && setShowListModal(!showListModal);
+    const toggleListModal = () => {
+        if (!isAuthenticated) {
+            alert('Please log in to view all reservations.');
+            return;
+        }
+        setShowListModal(!showListModal);
+    };
 
     const getDashboardStats = () => {
         const monthStart = new Date(selectedDashboardMonth.getFullYear(), selectedDashboardMonth.getMonth(), 1);
@@ -359,7 +379,7 @@ function App() {
 
     const generateReport = () => {
         if (!isAuthenticated) {
-            alert('Please enter the password to generate a report.');
+            alert('Please log in to generate a report.');
             return;
         }
         const stats = getDashboardStats();
@@ -401,7 +421,6 @@ function App() {
         let originalDisplayMode = displayMode;
         let elementToCapture = document.getElementById("reservationTable");
 
-        // Store original styles to restore later
         const originalStyles = {
             width: elementToCapture ? elementToCapture.style.width : null,
             fontSize: elementToCapture ? elementToCapture.style.fontSize : null,
@@ -413,54 +432,47 @@ function App() {
 
         if (displayMode === 'day') {
             setDisplayMode('week');
-            await new Promise(resolve => setTimeout(resolve, 200)); // Wait for render
+            await new Promise(resolve => setTimeout(resolve, 200));
             elementToCapture = document.getElementById("reservationTable");
         }
 
         if (elementToCapture) {
-            // Temporarily adjust table styles for readability
-            elementToCapture.style.width = '2000px'; // Even larger width for more space
-            elementToCapture.style.fontSize = '20px'; // Larger base font size
-            document.body.style.overflow = 'hidden'; // Prevent scrollbars
+            elementToCapture.style.width = '2000px';
+            elementToCapture.style.fontSize = '20px';
+            document.body.style.overflow = 'hidden';
 
-            // Adjust table cells (td, th) and nested divs
             const tds = elementToCapture.querySelectorAll('td');
             const ths = elementToCapture.querySelectorAll('th');
             const divs = elementToCapture.querySelectorAll('td div');
 
-            // Save and update td styles
             tds.forEach(td => {
                 originalStyles.tds.push({
                     padding: td.style.padding,
                     height: td.style.height
                 });
-                td.style.padding = '12px'; // More padding
-                td.style.height = '120px'; // Double the height for more vertical space
+                td.style.padding = '12px';
+                td.style.height = '120px';
             });
 
-            // Save and update th styles
             ths.forEach(th => {
                 originalStyles.ths.push({
                     padding: th.style.padding,
                     fontSize: th.style.fontSize
                 });
                 th.style.padding = '12px';
-                th.style.fontSize = '24px'; // Larger header font
+                th.style.fontSize = '24px';
             });
 
-            // Save and update nested div styles (reservation details)
             divs.forEach(div => {
                 originalStyles.divs.push({
                     fontSize: div.style.fontSize,
                     classes: div.className
                 });
-                // Remove truncate and set larger font sizes
                 div.className = div.className.replace(/truncate/g, '');
-                div.style.fontSize = '15px'; // Larger font for reservation details
+                div.style.fontSize = '15px';
             });
 
-            // Calculate scaled dimensions
-            const scaleFactor = 2; // Double the resolution
+            const scaleFactor = 2;
             const width = elementToCapture.offsetWidth * scaleFactor;
             const height = elementToCapture.offsetHeight * scaleFactor;
 
@@ -490,7 +502,6 @@ function App() {
                     alert("Failed to save week view as PNG. Please try again.");
                 })
                 .finally(() => {
-                    // Restore original styles
                     if (elementToCapture) {
                         elementToCapture.style.width = originalStyles.width || '';
                         elementToCapture.style.fontSize = originalStyles.fontSize || '';
@@ -606,39 +617,23 @@ function App() {
         );
     };
 
-    const mobileMenuOptions = [
-        { label: 'Add Reservation', action: handleModalToggle, color: 'bg-yellow-500' },
-        { label: 'View All', action: toggleListModal, color: 'bg-purple-500' },
-        { label: 'Select Date', action: toggleCalendar, color: 'bg-blue-500' },
-        { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500' },
-        { label: 'Dashboard', action: toggleDashboardModal, color: 'bg-indigo-500' },
+    const desktopMenuOptions = [
+        { label: 'Select Date', action: toggleCalendar, color: 'bg-blue-500', restricted: false },
+        { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500', restricted: false },
+        { label: 'Add Reservation', action: handleModalToggle, color: 'bg-yellow-500', restricted: true },
+        { label: 'View All', action: toggleListModal, color: 'bg-purple-500', restricted: true },
+        { label: 'Dashboard', action: toggleDashboardModal, color: 'bg-indigo-500', restricted: true },
+        { label: 'Login', action: handleLogin, color: 'bg-gray-500', restricted: false },
     ];
 
-    if (showPasswordModal) {
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 animate-fade-in">
-                <div className="w-full max-w-md bg-white p-6 rounded shadow-lg">
-                    <h2 className="text-xl mb-4">Enter Password</h2>
-                    <form onSubmit={handlePasswordSubmit}>
-                        <div className="mb-4">
-                            <label className="block">Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full p-2 border rounded"
-                                required
-                            />
-                        </div>
-                        <div className="flex justify-between">
-                            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Submit</button>
-                            <button type="button" onClick={handleContinueWithoutPassword} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Continue Without Password</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        );
-    }
+    const mobileMenuOptions = [
+        { label: 'Select Date', action: toggleCalendar, color: 'bg-blue-500', restricted: false },
+        { label: 'Save PNG', action: saveTableAsPNG, color: 'bg-green-500', restricted: false },
+        { label: 'Add Reservation', action: handleModalToggle, color: 'bg-yellow-500', restricted: true },
+        { label: 'View All', action: toggleListModal, color: 'bg-purple-500', restricted: true },
+        { label: 'Dashboard', action: toggleDashboardModal, color: 'bg-indigo-500', restricted: true },
+        { label: 'Login', action: handleLogin, color: 'bg-gray-500', restricted: false },
+    ];
 
     if (loading) {
         return <div className="h-screen w-full flex items-center justify-center text-gray-500">Loading...</div>;
@@ -665,11 +660,16 @@ function App() {
                 </div>
                 <div className="hidden md:flex mt-2 items-center space-x-4 justify-between px-4">
                     <div className="flex flex-row items-center space-x-4 flex-wrap">
-                        <button onClick={toggleCalendar} className="bg-blue-500 text-white px-4 py-2 rounded">Select Date</button>
-                        <button onClick={saveTableAsPNG} className="bg-green-500 text-white px-4 py-2 rounded">Save PNG</button>
-                        <button onClick={handleModalToggle} className="bg-yellow-500 text-white px-4 py-2 rounded">Add Reservation</button>
-                        <button onClick={toggleListModal} className="bg-purple-500 text-white px-4 py-2 rounded">View All</button>
-                        <button onClick={toggleDashboardModal} className="bg-indigo-500 text-white px-4 py-2 rounded">Dashboard</button>
+                        {desktopMenuOptions.map((option, index) => (
+                            <button
+                                key={index}
+                                onClick={option.action}
+                                className={`${option.color} text-white px-4 py-2 rounded ${!isAuthenticated && option.restricted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isAuthenticated && option.restricted}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
                 <button onClick={toggleMobileMenu} className="md:hidden mt-2 bg-white text-green-700 px-4 py-1 rounded-full shadow-md mx-auto block">Menu</button>
@@ -691,7 +691,12 @@ function App() {
                 <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-xl shadow-lg z-40 p-4 border-t border-gray-200 animate-fade-in">
                     <div className="grid grid-cols-2 gap-3">
                         {mobileMenuOptions.map((option, index) => (
-                            <button key={index} onClick={option.action} className={`${option.color} text-white py-3 px-4 rounded-lg text-sm font-medium ${!isAuthenticated && option.label !== 'Select Date' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <button
+                                key={index}
+                                onClick={option.action}
+                                className={`${option.color} text-white py-3 px-4 rounded-lg text-sm font-medium ${!isAuthenticated && option.restricted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={!isAuthenticated && option.restricted}
+                            >
                                 {option.label}
                             </button>
                         ))}
@@ -751,7 +756,7 @@ function App() {
                                 </div>
                             )}
                             <div className="flex justify-between">
-                                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">{editReservationId ? 'Update' : 'Add'}</button>
+                                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" disabled={!isAuthenticated}>Add</button>
                                 <button type="button" onClick={handleModalToggle} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Close</button>
                             </div>
                         </form>
@@ -768,7 +773,7 @@ function App() {
                                 <table className="w-full border-collapse">
                                     <thead>
                                     <tr className="bg-gray-100">
-                                        <th className="p-2 border text-left"><input type="checkbox" onChange={(e) => setSelectedReservations(e.target.checked ? reservations.map(r => r.id) : [])} /></th>
+                                        <th className="p-2 border text-left"><input type="checkbox" onChange={(e) => setSelectedReservations(e.target.checked ? reservations.map(r => r.id) : [])} disabled={!isAuthenticated} /></th>
                                         <th className="p-2 border text-left">Client Name</th>
                                         <th className="p-2 border text-left">Date</th>
                                         <th className="p-2 border text-left">Time</th>
@@ -781,7 +786,7 @@ function App() {
                                     <tbody>
                                     {reservations.sort((a, b) => new Date(a.date) - new Date(b.date)).map((reservation) => (
                                         <tr key={reservation.id} className="hover:bg-gray-50">
-                                            <td className="p-2 border"><input type="checkbox" checked={selectedReservations.includes(reservation.id)} onChange={() => setSelectedReservations((prev) => prev.includes(reservation.id) ? prev.filter((r) => r !== reservation.id) : [...prev, reservation.id])} /></td>
+                                            <td className="p-2 border"><input type="checkbox" checked={selectedReservations.includes(reservation.id)} onChange={() => setSelectedReservations((prev) => prev.includes(reservation.id) ? prev.filter((r) => r !== reservation.id) : [...prev, reservation.id])} disabled={!isAuthenticated} /></td>
                                             <td className="p-2 border">{reservation.clientName}</td>
                                             <td className="p-2 border">{new Date(reservation.date).toLocaleDateString()}</td>
                                             <td className="p-2 border">{reservation.startTime} - {reservation.endTime}</td>
@@ -790,8 +795,8 @@ function App() {
                                             {isAuthenticated && <td className="p-2 border">${reservation.price || 'N/A'}</td>}
                                             {isAuthenticated && (
                                                 <td className="p-2 border">
-                                                    <button onClick={() => deleteReservation(reservation.id)} className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 transition z-80">Delete</button>
-                                                    <button onClick={() => handleEditReservation(reservation)} className="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-2 hover:bg-blue-600 transition z-80">Edit</button>
+                                                    <button onClick={() => deleteReservation(reservation.id)} className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600 transition z-80" disabled={!isAuthenticated}>Delete</button>
+                                                    <button onClick={() => handleEditReservation(reservation)} className="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-2 hover:bg-blue-600 transition z-80" disabled={!isAuthenticated}>Edit</button>
                                                 </td>
                                             )}
                                         </tr>
@@ -804,7 +809,7 @@ function App() {
                         )}
                         <div className="mt-4 flex justify-between">
                             {isAuthenticated && reservations.length > 0 && (
-                                <button onClick={bulkDelete} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition z-80">Delete Selected</button>
+                                <button onClick={bulkDelete} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition z-80" disabled={!isAuthenticated}>Delete Selected</button>
                             )}
                             <button onClick={toggleListModal} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition ml-auto z-80">Close</button>
                         </div>
@@ -836,7 +841,7 @@ function App() {
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="bg-white p-4 rounded-lg shadow-md border border-gray-100">
-                                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Customers</h3>
+                                            <h2 className="text-lg font-semibold text-gray-800 mb-2">Total Customers</h2>
                                             <p className="text-2xl font-bold text-blue-600">{getDashboardStats().totalCustomers}</p>
                                         </div>
                                         {isAuthenticated && (
@@ -892,7 +897,7 @@ function App() {
                             )}
                         </div>
                         <div className="p-6 flex justify-between items-center bg-gray-50 rounded-b-xl">
-                            <button onClick={toggleDashboardCalendar} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Select Month</button>
+                            <button onClick={toggleDashboardCalendar} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" disabled={!isAuthenticated}>Select Month</button>
                             {isAuthenticated && <button onClick={generateReport} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">Generate Report</button>}
                             <button onClick={() => setShowDashboardModal(false)} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Close</button>
                         </div>
@@ -904,6 +909,30 @@ function App() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {showPasswordModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 animate-fade-in">
+                    <div className="w-full max-w-md bg-white p-6 rounded shadow-lg">
+                        <h2 className="text-xl mb-4">Enter Password</h2>
+                        <form onSubmit={handlePasswordSubmit}>
+                            <div className="mb-4">
+                                <label className="block">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                    required
+                                />
+                            </div>
+                            <div className="flex justify-between">
+                                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Submit</button>
+                                <button type="button" onClick={() => { setShowPasswordModal(false); setPassword(''); }} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Cancel</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
