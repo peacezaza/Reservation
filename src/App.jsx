@@ -7,6 +7,8 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
+const baseURL = "https://nailsbackend.onrender.com"
+
 function App() {
     const [date, setDate] = useState(new Date());
     const [selectedDateRange, setSelectedDateRange] = useState(null);
@@ -88,7 +90,7 @@ function App() {
 
     const fetchReservations = async () => {
         try {
-            const response = await fetch('http://40.81.22.116:3000/reservations');
+            const response = await fetch(`${baseURL}/reservations`);
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             setReservations(data);
@@ -101,7 +103,7 @@ function App() {
 
     const saveReservations = async (updatedReservations) => {
         try {
-            const response = await fetch('http://40.81.22.116:3000/reservations', {
+            const response = await fetch(`${baseURL}/reservations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedReservations),
