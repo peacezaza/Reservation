@@ -7,7 +7,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
-const baseURL = "https://nailsbackend.onrender.com"
+const baseURL = "http://localhost:3000"
 
 function App() {
     const [date, setDate] = useState(new Date());
